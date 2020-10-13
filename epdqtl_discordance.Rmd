@@ -2,4 +2,18 @@
 title: "eQTL/pdQTL discordance investigation"
 ---
 
+```{r echo = T, results = 'hide'}
+library(tidyverse)
+```
+
+load eQTL and pdQTL tibble for chr 22
+
+```{r}
+eQTL_vs_pdQTL_chr22 = read_csv("../TD20200925/eQTL_vs_pdQTL_chr22.csv", col_types = cols())
+eQTL_vs_pdQTL_chr22
+```
+
+```{r}
+eQTL_vs_pdQTL_chr22 %>% filter(beta.raw * beta.TD < 0, !is.na(beta.raw), !is.na(beta.TD)) %>% ggplot(aes(beta.raw, beta.TD)) + geom_point()
+```
 
