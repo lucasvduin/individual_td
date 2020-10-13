@@ -14,6 +14,8 @@ rmarkdown::paged_table(eQTL_vs_pdQTL_chr22)
 ```
 
 ```{r}
-eQTL_vs_pdQTL_chr22 %>% filter(beta.raw * beta.TD < 0, !is.na(beta.raw), !is.na(beta.TD)) %>% ggplot(aes(beta.raw, beta.TD)) + geom_point()
+(eQTL_vs_pdQTL_chr22 %>% filter(beta.raw * beta.TD < 0, !is.na(beta.raw), !is.na(beta.TD)) %>% 
+   ggplot(aes(beta.raw, beta.TD)) + geom_point()) %>%
+  plotly::ggplotly()
 ```
 
