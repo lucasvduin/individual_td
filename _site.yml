@@ -1,9 +1,9 @@
-name: "my-website"
+name: "individual_td"
 output_dir: "docs"
 navbar:
-  title: "My Websit"
+  title: "TD of individual variation"
   left:
     - text: "Home"
       href: index.html
-    - text: "About"
-      href: about.html
+    - text: "e/pdQTL discordance"
+      href: epdqtl_discordance.html
