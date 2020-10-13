@@ -10,7 +10,7 @@ load eQTL and pdQTL tibble for chr 22
 
 ```{r}
 eQTL_vs_pdQTL_chr22 = read_csv("../TD20200925/eQTL_vs_pdQTL_chr22.csv", col_types = cols())
-eQTL_vs_pdQTL_chr22
+rmarkdown::paged_table(eQTL_vs_pdQTL_chr22)
 ```
 
 ```{r}
