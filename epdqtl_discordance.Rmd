@@ -1,8 +1,12 @@
 ---
 title: "eQTL/pdQTL discordance investigation"
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding, output_dir = "/isdata/www/lucas/TD")
+  })
+output: html_document
 ---
 
-```{r echo = T, results = 'hide'}
+```{r echo = T, results = 'hide', message = FALSE}
 library(tidyverse)
 ```
 
@@ -10,12 +14,45 @@ load eQTL and pdQTL tibble for chr 22
 
 ```{r}
 eQTL_vs_pdQTL_chr22 = read_csv("../TD20200925/eQTL_vs_pdQTL_chr22.csv", col_types = cols())
-rmarkdown::paged_table(eQTL_vs_pdQTL_chr22)
+rmarkdown::paged_table(eQTL_vs_pdQTL_chr22, options = list(rows.print = 2))
 ```
 
+First we plot the bin-snp associations that have a different effect size in the eQTL analysis than in the pdQTL analysis. To limit the number of points, we take for each bin maximum the top 10 combined FDR values.
+
 ```{r}
-(eQTL_vs_pdQTL_chr22 %>% filter(beta.raw * beta.TD < 0, !is.na(beta.raw), !is.na(beta.TD)) %>% 
-   ggplot(aes(beta.raw, beta.TD)) + geom_point()) %>%
+discordant = eQTL_vs_pdQTL_chr22 %>% filter(beta.raw * beta.TD < 0, !is.na(beta.raw), !is.na(beta.TD))
+(discordant %>%
+   arrange(FDR.raw + FDR.TD) %>% group_by(gene) %>% slice_head(n = 10) %>%
+   ggplot(aes(beta.raw, beta.TD, color = factor(gene), alpha = -log10(FDR.raw + FDR.TD), label = snps)) + geom_point() + 
+   ggtitle("top 10 discordant snp-bin pairs per bin chr 22")) %>%
   plotly::ggplotly()
 ```
+
+To zoom in a bit and see why some of these bins are going up with genotype status in PD and down in binned expression or vice versa, let's look at gene 4626, the one with the highest FDR values.
+
+First we plot the PD bin value by genotype
+
+```{r, message = FALSE}
+bin_id = 4626
+snp = "56409"
+individual.PD = vroom::vroom("/isdata/alab/projects/reg_arch_rnaseq/shared_data/TD/rnaseq/rnaseq_rw_ind_mean.csv")
+shared.PD = vroom::vroom("/isdata/alab/projects/reg_arch_rnaseq/shared_data/TD/rnaseq/rnaseq_rw_mean.csv")
+binned.exp = vroom::vroom("/isdata/alab/projects/reg_arch_rnaseq/shared_data/raw_binned/raw_binned_rnaseq_TD_indivs.csv") %>% mutate(across(matches("NA|GM|HG"), ~log1p(.) %>% scale()))
+SNPS.chr22 = vroom::vroom("../TD20200925/SNP.chr22..rna.raw.binned.log1p.txt")
+genotype = SNPS.chr22 %>% filter(str_detect(snpid, snp)) %>% select(-snpid) %>% pivot_longer(matches("GM|NA|HG"), values_to = "genotype") %>% mutate(name = str_replace(name, "NA", "GM"))
+phenotype = bind_rows(individual.PD %>% filter(bin == bin_id, chr == "chr22") %>% select(-chr, -bin, -start, -end) %>% mutate(qtl_type = "PD"),
+                         binned.exp %>% filter(bin == bin_id, chr == "chr22") %>% select(-chr, -bin, -start, -end) %>% mutate(qtl_type = "binned")) %>% pivot_longer(matches("GM|NA|HG"), values_to = "phenotype")
+
+inner_join(genotype, phenotype) %>% ggplot(aes(factor(genotype), phenotype)) + geom_violin() + ggbeeswarm::geom_beeswarm(cex = 1.2) + facet_wrap(vars(qtl_type))
+```
+
+
+
+
+
+
+
+
+
+
 

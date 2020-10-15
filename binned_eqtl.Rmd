@@ -1,0 +1,39 @@
+---
+title: "RNA-seq binned QTL"
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding, output_dir = "/isdata/www/lucas/TD")
+  })
+---
+
+First we make different input tibbles
+
+```{r}
+rna.raw.binned = read_csv("/isdata/alab/projects/reg_arch_rnaseq/shared_data/raw_binned/raw_binned_rnaseq_TD_indivs.csv")
+
+rna.binned.rpm = rna.raw.binned %>% mutate(across(matches("NA|GM|HG"), ~./sum(.)*1e6))
+
+rna.binned.rpm.log1p = rna.binned.rpm %>% mutate(across(matches("NA|GM|HG"), ~log1p(.)))
+
+rna.binned.rpm.log1p.scaled = rna.binned.rpm.log1p %>% mutate(across(matches("NA|GM|HG"), ~scale(.) %>% unlist()))
+```
+
+To see if it makes a difference in the eQTLs found
+
+```{r}
+me.rna.raw.binned = me.varname.bin(chr = "chr22", exp.tib = rna.raw.binned, varname = "knitr.raw.binned")
+```
+
+```{r}
+me.rna.binned.rpm = me.varname.bin(chr = "chr22", exp.tib = rna.binned.rpm, varname = "knitr.rna.binned.rpm")
+```
+
+
+```{r}
+me.rna.binned.rpm.log1p = me.varname.bin(chr = "chr22", exp.tib = rna.binned.rpm.log1p, varname = "knitr.rna.binned.rpm.log1p")
+```
+
+
+```{r}
+me.rna.binned.rpm.log1p.scaled = me.varname.bin(chr = "chr22", exp.tib = rna.binned.rpm.log1p.scaled, varname = "knitr.rna.binned.rpm.log1p.scaled")
+```
+

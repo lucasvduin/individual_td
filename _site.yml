@@ -1,5 +1,5 @@
 name: "individual_td"
-output_dir: "docs"
+output_dir: "../../../../../www/lucas/TD"
 navbar:
   title: "TD of individual variation"
   left:
@@ -7,3 +7,7 @@ navbar:
       href: index.html
     - text: "e/pdQTL discordance"
       href: epdqtl_discordance.html
+    - text: "functions"
+      href: functions.html
+    - text: "RNA-Seq binned eQTL"
+      href: binned_eqtl.html

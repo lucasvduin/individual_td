@@ -1,0 +1,269 @@
+---
+title: "Functions"
+knit: (function(inputFile, encoding) {
+    rmarkdown::render(inputFile, encoding = encoding, output_dir = "/isdata/www/lucas/TD")
+  })
+output: html_document
+---
+
+Binned QTL file prep
+```{r}
+me.varname.bin = function(chr, exp.tib, varname){
+  filterchr = chr
+  
+  require(MatrixEQTL)
+  require(tidyverse)
+  require(data.table)
+  
+  exp.tib.col.sorted = c(colnames(exp.tib) %>% keep(!str_detect(., "GM|NA|HG")), colnames(exp.tib) %>% keep(str_detect(., "GM|NA|HG")) %>% sort())
+  exp.tib = exp.tib %>% select(all_of(exp.tib.col.sorted))
+  
+  #exp.tib = filter(exp.tib, across(any_of("empty.bin"), ~!empty.bin))
+  
+  #bins = seq(nrow(exp.tib))
+  
+  # if("bin" %in% colnames(exp.tib)) {
+  #   bins = exp.tib$bin
+  # }
+  
+  # exp.tib = select(exp.tib, matches("HG|GM|NA"))
+  
+  indiv.dna.td = colnames(exp.tib %>% select(matches("HG|GM|NA"))) %>% str_replace_all("GM", "NA")
+  indiv.dna.1000g = read_lines(paste0("/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", chr, ".all.cage.geuvadis.indivs.hg38.012.indv"))
+  indiv.dna.intersect = intersect(indiv.dna.td, indiv.dna.1000g)
+  
+  GE.txt = exp.tib %>% filter(chr == filterchr) %>% select(-chr, -start, -end) %>% `colnames<-`(colnames(.) %>% str_replace_all("GM", "NA")) %>% select(bin, all_of(indiv.dna.intersect))
+  
+  #exp.tib %>% `colnames<-`(colnames(.) %>% str_replace_all("GM", "NA")) %>% select(all_of(indiv.dna.intersect)) %>%
+  #add_column(geneid = paste0("Gene_", sprintf(paste0('%0.',nchar(nrow(.)), 'd'), bins)), .before = 1)
+  
+  #omit.bins = read_csv("/isdata/alab/projects/reg_arch_rnaseq/beds/rnaseq/geuvadis_csv/GEUVADIS_CAGE_empty_stretches.csv") %>% filter(chr == !!chr) %>% select(-chr) %>% unlist() %>% sort()
+  #omit.bins1 = omit.bins[1:2]
+  #omit.bins2 = omit.bins[3:4]
+  
+  geneloc.txt = exp.tib %>% filter(chr == filterchr) %>% select(bin, chr, start, end) %>% mutate(left = start, right = end) %>% select(-start, -end)
+  
+  #tibble(geneid = GE.txt$geneid, chr = chr, right = bins*1e4) %>% add_column(left = .$right - 1e4+1, .after = 2)
+  
+  correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+  
+  if(length(correct.indiv.file) < 1 ){
+    writeLines(indiv.dna.intersect,"/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt")
+    
+    #system(paste0("sed -i 's/^##fileformat=VCFv4.3/##fileformat=VCFv4.2/' vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf"))
+    system(paste0("/binf-isilon/alab/people/lucas/bin/bin/vcftools --vcf ", "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", "/vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf --012 --out /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/",chr, ".", ncol(GE.txt),".hg38 --max-missing 1.0 --remove-indels --maf 0.1 --keep /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt"))
+    correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+    
+  }
+  correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+  
+  if(!file.exists(str_remove(correct.indiv.file[[1]], ".indv"))){
+    writeLines(indiv.dna.intersect,"/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt")
+    
+    #system(paste0("sed -i 's/^##fileformat=VCFv4.3/##fileformat=VCFv4.2/' vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf"))
+    system(paste0("/binf-isilon/alab/people/lucas/bin/bin/vcftools --vcf ", "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", "/vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf --012 --out /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/",chr, ".", ncol(GE.txt),".hg38 --max-missing 1.0 --remove-indels --maf 0.1 --keep /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt"))
+    correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+    
+  }
+  SNP.txt = fread(correct.indiv.file %>% str_remove(".indv"))[,-1] %>% t() %>% `colnames<-`(readLines(correct.indiv.file)) %>% as_tibble() %>% select(all_of(indiv.dna.intersect)) %>% 
+    add_column(snpid = paste0("snp_",sprintf(paste0('%0.',nchar(nrow(.)),'d'), 1:nrow(.))), .before = 1)
+  snploc.txt = tibble(snpid = SNP.txt$snpid) %>% bind_cols(read_tsv(correct.indiv.file %>% str_replace("indv", "pos"), col_names = c("chr", "pos"), col_types = cols()))
+  
+  walk(c("GE", "geneloc", "SNP", "snploc"), ~get(paste0(.x, ".txt")) %>% write_tsv(x = ., path = paste(.x, chr, varname, "txt", sep = ".")))
+  
+  me = do.matrixeqtl.after.filegen.vname(chr, varname)
+  par(new = T)
+  plot(1,1, xaxt = 'n', yaxt = 'n', ann = FALSE, bty = 'n', type = 'n')
+  text(1,1, paste(chr, varname))
+  return(me)
+  
+}
+```
+
+gene QTL file prep
+
+```{r}
+me.varname.gene = function(chr, exp.tib, varname){
+  filterchr = chr
+  
+  require(MatrixEQTL)
+  require(tidyverse)
+  require(data.table)
+  
+  exp.tib.col.sorted = c(colnames(exp.tib) %>% keep(!str_detect(., "GM|NA|HG")), colnames(exp.tib) %>% keep(str_detect(., "GM|NA|HG")) %>% sort())
+  exp.tib = exp.tib %>% select(all_of(exp.tib.col.sorted))
+  
+  #exp.tib = filter(exp.tib, across(any_of("empty.bin"), ~!empty.bin))
+  
+  #bins = seq(nrow(exp.tib))
+  
+  # if("bin" %in% colnames(exp.tib)) {
+  #   bins = exp.tib$bin
+  # }
+  
+  # exp.tib = select(exp.tib, matches("HG|GM|NA"))
+  
+  indiv.dna.td = colnames(exp.tib %>% select(matches("HG|GM|NA"))) %>% str_replace_all("GM", "NA")
+  indiv.dna.1000g = read_lines(paste0("/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", chr, ".all.cage.geuvadis.indivs.hg38.012.indv"))
+  indiv.dna.intersect = intersect(indiv.dna.td, indiv.dna.1000g)
+  
+  GE.txt = exp.tib %>% filter(chr == filterchr) %>% select(-chr, -start, -end) %>% `colnames<-`(colnames(.) %>% str_replace_all("GM", "NA")) %>% select(geneid, all_of(indiv.dna.intersect))
+    
+    #exp.tib %>% `colnames<-`(colnames(.) %>% str_replace_all("GM", "NA")) %>% select(all_of(indiv.dna.intersect)) %>%
+    #add_column(geneid = paste0("Gene_", sprintf(paste0('%0.',nchar(nrow(.)), 'd'), bins)), .before = 1)
+  
+  #omit.bins = read_csv("/isdata/alab/projects/reg_arch_rnaseq/beds/rnaseq/geuvadis_csv/GEUVADIS_CAGE_empty_stretches.csv") %>% filter(chr == !!chr) %>% select(-chr) %>% unlist() %>% sort()
+  #omit.bins1 = omit.bins[1:2]
+  #omit.bins2 = omit.bins[3:4]
+  
+  geneloc.txt = exp.tib %>% filter(chr == filterchr) %>% select(geneid, chr, start, end) %>% mutate(left = start, right = end) %>% select(-start, -end)
+    
+    #tibble(geneid = GE.txt$geneid, chr = chr, right = bins*1e4) %>% add_column(left = .$right - 1e4+1, .after = 2)
+  
+  correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+  
+  if(length(correct.indiv.file) < 1 ){
+    writeLines(indiv.dna.intersect,"/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt")
+    
+    #system(paste0("sed -i 's/^##fileformat=VCFv4.3/##fileformat=VCFv4.2/' vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf"))
+    system(paste0("/binf-isilon/alab/people/lucas/bin/bin/vcftools --vcf ", "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", "/vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf --012 --out /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/",chr, ".", ncol(GE.txt),".hg38 --max-missing 1.0 --remove-indels --maf 0.1 --keep /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt"))
+    correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+    
+  }
+  correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+  
+  if(!file.exists(str_remove(correct.indiv.file[[1]], ".indv"))){
+    writeLines(indiv.dna.intersect,"/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt")
+    
+    #system(paste0("sed -i 's/^##fileformat=VCFv4.3/##fileformat=VCFv4.2/' vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf"))
+    system(paste0("/binf-isilon/alab/people/lucas/bin/bin/vcftools --vcf ", "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", "/vcf_scratch/ALL.",chr,".shapeit2_integrated_v1a.GRCh38.20181129.phased.vcf --012 --out /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/",chr, ".", ncol(GE.txt),".hg38 --max-missing 1.0 --remove-indels --maf 0.1 --keep /isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/keep.txt"))
+    correct.indiv.file = list.files(path = "/isdata/alab/projects/reg_arch_rnaseq/scripts/Geuvadis20200324/", pattern = paste0(".*",chr,"\\..*012.indv"), full.names = TRUE) %>% rlang::set_names() %>% map(~readLines(.x)) %>% keep(~isTRUE(all.equal(., indiv.dna.intersect %>% sort()))) %>% names()
+    
+  }
+  SNP.txt = fread(correct.indiv.file %>% str_remove(".indv"))[,-1] %>% t() %>% `colnames<-`(readLines(correct.indiv.file)) %>% as_tibble() %>% select(all_of(indiv.dna.intersect)) %>% 
+    add_column(snpid = paste0("snp_",sprintf(paste0('%0.',nchar(nrow(.)),'d'), 1:nrow(.))), .before = 1)
+  snploc.txt = tibble(snpid = SNP.txt$snpid) %>% bind_cols(read_tsv(correct.indiv.file %>% str_replace("indv", "pos"), col_names = c("chr", "pos"), col_types = cols()))
+  
+  walk(c("GE", "geneloc", "SNP", "snploc"), ~get(paste0(.x, ".txt")) %>% write_tsv(x = ., path = paste(.x, chr, varname, "txt", sep = ".")))
+  
+  me = do.matrixeqtl.after.filegen.vname(chr, varname)
+  par(new = T)
+  plot(1,1, xaxt = 'n', yaxt = 'n', ann = FALSE, bty = 'n', type = 'n')
+  text(1,1, paste(chr, varname))
+  return(me)
+  
+}
+```
+
+
+Matrix eQTL function call from generated files
+```{r}
+do.matrixeqtl.after.filegen.vname = function(chr, suffix){
+  require(MatrixEQTL)
+  ## Location of the package with the data files.
+  base.dir = find.package('MatrixEQTL');
+  
+  ## Settings
+  
+  # Linear model to use, modelANOVA, modelLINEAR, or modelLINEAR_CROSS
+  useModel = modelLINEAR; # modelANOVA, modelLINEAR, or modelLINEAR_CROSS
+  
+  # Genotype file name
+  SNP_file_name = paste0("SNP.",chr, ".", suffix ,".txt");
+  snps_location_file_name = paste0("snploc.",chr, ".", suffix ,".txt");
+  
+  # Gene expression file name
+  expression_file_name = paste0("GE.",chr, ".", suffix ,".txt");
+  gene_location_file_name = paste0("geneloc.",chr, ".", suffix ,".txt");
+  
+  # Covariates file name
+  # Set to character() for no covariates
+  covariates_file_name = character();
+  
+  # Output file name
+  output_file_name_cis = tempfile();
+  output_file_name_tra = tempfile();
+  
+  # Only associations significant at this level will be saved
+  pvOutputThreshold_cis = 2e-4;
+  pvOutputThreshold_tra = 1e-5;
+  
+  # Error covariance matrix
+  # Set to numeric() for identity.
+  errorCovariance = numeric();
+  # errorCovariance = read.table("Sample_Data/errorCovariance.txt");
+  
+  # Distance for local gene-SNP pairs
+  cisDist = 1e6;
+  
+  ## Load genotype data
+  
+  snps = SlicedData$new();
+  snps$fileDelimiter = "\t";      # the TAB character
+  snps$fileOmitCharacters = "NA"; # denote missing values;
+  snps$fileSkipRows = 1;          # one row of column labels
+  snps$fileSkipColumns = 1;       # one column of row labels
+  snps$fileSliceSize = 20000;      # read file in slices of 2,000 rows
+  snps$LoadFile(SNP_file_name);
+  
+  ## Load gene expression data
+  
+  gene = SlicedData$new();
+  gene$fileDelimiter = "\t";      # the TAB character
+  gene$fileOmitCharacters = "NA"; # denote missing values;
+  gene$fileSkipRows = 1;          # one row of column labels
+  gene$fileSkipColumns = 1;       # one column of row labels
+  gene$fileSliceSize = 20000;      # read file in slices of 2,000 rows
+  gene$LoadFile(expression_file_name);
+  
+  ## Load covariates
+  
+  cvrt = SlicedData$new();
+  cvrt$fileDelimiter = "\t";      # the TAB character
+  cvrt$fileOmitCharacters = "NA"; # denote missing values;
+  cvrt$fileSkipRows = 1;          # one row of column labels
+  cvrt$fileSkipColumns = 1;       # one column of row labels
+  if(length(covariates_file_name)>0) {
+    cvrt$LoadFile(covariates_file_name);
+  }
+  
+  ## Run the analysis
+  snpspos = read.table(snps_location_file_name, header = TRUE, stringsAsFactors = FALSE);
+  genepos = read.table(gene_location_file_name, header = TRUE, stringsAsFactors = FALSE);
+  
+  me = Matrix_eQTL_main(
+    snps = snps, 
+    gene = gene, 
+    cvrt = cvrt,
+    output_file_name      = output_file_name_tra,
+    pvOutputThreshold     = pvOutputThreshold_tra,
+    useModel = useModel, 
+    errorCovariance = errorCovariance, 
+    verbose = TRUE, 
+    output_file_name.cis  = output_file_name_cis,
+    pvOutputThreshold.cis = pvOutputThreshold_cis,
+    snpspos = snpspos, 
+    genepos = genepos,
+    cisDist = cisDist,
+    pvalue.hist = TRUE,
+    min.pv.by.genesnp = FALSE,
+    noFDRsaveMemory = FALSE);
+  
+  unlink(output_file_name_tra);
+  unlink(output_file_name_cis);
+  
+  ## Results:
+  
+  cat('Analysis done in: ', me$time.in.sec, ' seconds', '\n');
+  cat('Detected local eQTLs:', '\n');
+  #show(me[[as.character(chr)]]$cis$eqtls[1:20,])
+  # cat('Detected distant eQTLs:', '\n');
+  # show(me$trans$eqtls)
+  
+  ## Make the histogram of local and distant p-values
+  
+  plot(me)
+  return(me)
+}
+```
+
